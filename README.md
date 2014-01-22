@@ -22,7 +22,7 @@ if !ok {
 }
 
 if err != nil {
-  log.Fatal("Error while attempting lock")
+	log.Fatal("Error while attempting lock")
 }
 
 // Do something with the user.
