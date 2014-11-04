@@ -3,20 +3,16 @@ Package redislock implements a pessimistic lock using Redis.
 
 For example, lock and unlock a user using its ID as a resource identifier:
 	lock, ok, err := redislock.TryLock(conn, "user:123")
-
+	if err != nil {
+		log.Fatal("Error while attempting lock")
+	}
 	if !ok {
 		// User is in use - return to avoid duplicate work, race conditions, etc.
 		return
 	}
-
-	if err != nil {
-		log.Fatal("Error while attempting lock")
-	}
-
+	defer lock.Unlock()
+	
 	// Do something with the user.
-
-	// When you're done, unlock the user.
-	lock.Unlock()
 */
 package redislock
 
