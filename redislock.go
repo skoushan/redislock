@@ -11,16 +11,17 @@ For example, lock and unlock a user using its ID as a resource identifier:
 		return
 	}
 	defer lock.Unlock()
-	
+
 	// Do something with the user.
 */
 package redislock
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"time"
+
+	"code.google.com/p/go-uuid/uuid"
+	"github.com/garyburd/redigo/redis"
 )
 
 const lockTimeout = 10 * time.Minute
@@ -43,16 +44,15 @@ type Lock struct {
 
 func (lock *Lock) tryLock() (ok bool, err error) {
 	status, err := redis.String(lock.conn.Do("SET", lock.key(), lock.token, "EX", int64(lockTimeout/time.Second), "NX"))
-
 	if err == redis.ErrNil {
 		// The lock was not successful, it already exists.
-		err = nil
-	} else if err == nil && status == "OK" {
-		// The lock was successful.
-		ok = true
+		return false, nil
+	}
+	if err != nil {
+		return false, err
 	}
 
-	return
+	return status == "OK", nil
 }
 
 // Unlock releases the lock. If the lock has timed out, it silently fails without error.
