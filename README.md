@@ -15,18 +15,14 @@ http://godoc.org/github.com/atomic-labs/redislock
 
 ```go
 lock, ok, err := redislock.TryLock(conn, "user:123")
-
+if err != nil {
+	log.Fatal("Error while attempting lock")
+}
 if !ok {
 	// User is in use - return to avoid duplicate work, race conditions, etc.
 	return
 }
-
-if err != nil {
-	log.Fatal("Error while attempting lock")
-}
+defer lock.Unlock()
 
 // Do something with the user.
-
-// When you're done, unlock the user.
-lock.Unlock()
 ```
