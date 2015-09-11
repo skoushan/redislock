@@ -5,11 +5,11 @@ Pessimistic locking for Go using Redis.
 
 ### Installation
 
-    go get -u github.com/atomic-labs/redislock
+    go get -u github.com/everalbum/redislock
 
 ### Documentation
 
-http://godoc.org/github.com/atomic-labs/redislock
+http://godoc.org/github.com/everalbum/redislock
 
 ### Example
 
