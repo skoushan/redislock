@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pborman/uuid"
 	"github.com/garyburd/redigo/redis"
+	"github.com/pborman/uuid"
 )
 
-const lockTimeout = 10 * time.Minute
+const DefaultTimeout = 10 * time.Minute
 
 var unlockScript = redis.NewScript(1, `
 	if redis.call("get", KEYS[1]) == ARGV[1]
@@ -35,15 +35,21 @@ var unlockScript = redis.NewScript(1, `
 	end
 `)
 
-// Lock represents a held lock.
-type Lock struct {
+// Mutex represents a mutual exclusion lock.
+type Mutex struct {
+	Timeout  time.Duration // default value of DefaultTimeout
 	resource string
 	token    string
 	conn     redis.Conn
 }
 
-func (lock *Lock) tryLock() (ok bool, err error) {
-	status, err := redis.String(lock.conn.Do("SET", lock.key(), lock.token, "EX", int64(lockTimeout/time.Second), "NX"))
+func NewMutex(conn redis.Conn, resource string) *Mutex {
+	return &Mutex{DefaultTimeout, resource, uuid.New(), conn}
+}
+
+// TryLock attempts to acquire a lock on the given resource in a non-blocking manner.
+func (m *Mutex) TryLock() (ok bool, err error) {
+	status, err := redis.String(m.conn.Do("SET", m.key(), m.token, "EX", int64(m.timeout()/time.Second), "NX"))
 	if err == redis.ErrNil {
 		// The lock was not successful, it already exists.
 		return false, nil
@@ -56,24 +62,18 @@ func (lock *Lock) tryLock() (ok bool, err error) {
 }
 
 // Unlock releases the lock. If the lock has timed out, it silently fails without error.
-func (lock *Lock) Unlock() (err error) {
-	_, err = unlockScript.Do(lock.conn, lock.key(), lock.token)
+func (m *Mutex) Unlock() (err error) {
+	_, err = unlockScript.Do(m.conn, m.key(), m.token)
 	return
 }
 
-func (lock *Lock) key() string {
-	return fmt.Sprintf("redislock:%s", lock.resource)
+func (m *Mutex) key() string {
+	return fmt.Sprintf("redislock:%s", m.resource)
 }
 
-// TryLock attempts to acquire a lock on the given resource in a non-blocking manner.
-func TryLock(conn redis.Conn, resource string) (lock *Lock, ok bool, err error) {
-	lock = &Lock{resource, uuid.New(), conn}
-
-	ok, err = lock.tryLock()
-
-	if !ok || err != nil {
-		lock = nil
+func (m *Mutex) timeout() time.Duration {
+	if m.Timeout == 0 {
+		return DefaultTimeout
 	}
-
-	return
+	return m.Timeout
 }

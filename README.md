@@ -14,7 +14,9 @@ http://godoc.org/github.com/everalbum/redislock
 ### Example
 
 ```go
-lock, ok, err := redislock.TryLock(conn, "user:123")
+m := redislock.NewMutex(conn, "user:123")
+// optionally set timeout with: m.Timeout = time.Minute
+ok, err := m.TryLock()
 if err != nil {
 	log.Fatal("Error while attempting lock")
 }
