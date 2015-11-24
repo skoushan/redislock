@@ -20,11 +20,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pborman/uuid"
 	"github.com/garyburd/redigo/redis"
+	"github.com/pborman/uuid"
 )
-
-const lockTimeout = 10 * time.Minute
 
 var unlockScript = redis.NewScript(1, `
 	if redis.call("get", KEYS[1]) == ARGV[1]
@@ -40,10 +38,11 @@ type Lock struct {
 	resource string
 	token    string
 	conn     redis.Conn
+	timeout  time.Duration
 }
 
 func (lock *Lock) tryLock() (ok bool, err error) {
-	status, err := redis.String(lock.conn.Do("SET", lock.key(), lock.token, "EX", int64(lockTimeout/time.Second), "NX"))
+	status, err := redis.String(lock.conn.Do("SET", lock.key(), lock.token, "EX", int64(lock.timeout/time.Second), "NX"))
 	if err == redis.ErrNil {
 		// The lock was not successful, it already exists.
 		return false, nil
@@ -66,8 +65,8 @@ func (lock *Lock) key() string {
 }
 
 // TryLock attempts to acquire a lock on the given resource in a non-blocking manner.
-func TryLock(conn redis.Conn, resource string) (lock *Lock, ok bool, err error) {
-	lock = &Lock{resource, uuid.New(), conn}
+func TryLock(conn redis.Conn, resource string, timeout time.Duration) (lock *Lock, ok bool, err error) {
+	lock = &Lock{resource, uuid.New(), conn, timeout}
 
 	ok, err = lock.tryLock()
 
